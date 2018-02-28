@@ -7,8 +7,7 @@ from write_me.project_data import get_project_url
 
 setup_parsed = {}
 
-setup_keys = [
-              'version',
+setup_keys = ['version',
               'description',
               'author_email',
               'packages',
@@ -33,8 +32,9 @@ def parse_authors():
 
 def parse_setup_py():
     """Convert needed info from setup.py into dict."""
-
+    project_dict = get_project_url()
     setup_files = get_setup_file()
+
     if not setup_files:
         setup_parsed['version'] = "YOUR VERSION HERE"
         setup_parsed['description'] = get_git_description()
@@ -52,19 +52,23 @@ def parse_setup_py():
             if not appending:
                 for key in setup_keys:
                     if line.startswith(key):
-                        k, v = line.split('=')
-                        if v.startswith('['):
-                            if v.endswith(']'):
-                                v = ast.literal_eval(v)
-                                setup_parsed[k] = v
-                                continue
+                        try:
+                            k, v = line.split('=')
+                            if v.startswith('['):
+                                if v.endswith(']'):
+                                    v = ast.literal_eval(v)
+                                    setup_parsed[k] = v
+                                    continue
+                                else:
+                                    appending = True
+                                    v = v.lstrip('[')
+                                    create_list.append(v.strip("'"))
+                                    continue
                             else:
-                                appending = True
-                                v = v.lstrip('[')
-                                create_list.append(v.strip("'"))
+                                setup_parsed[k] = v.strip("'")
                                 continue
-                        else:
-                            setup_parsed[k] = v.strip("'")
+                        except:
+                            setup_parsed[key] = "NO INFO FOUND"
                             continue
                     else:
                         continue
@@ -88,20 +92,20 @@ def parse_setup_py():
         if isinstance(setup_parsed['author'], str):
             setup_parsed['author'] = parse_authors()
 
-    if not setup_parsed['author']:
+    if 'author' not in setup_parsed:
         # get from author from setup_data dict instead.
         setup_parsed['author'] = [project_dict['project_user']]
 
-    if not setup_parsed['author_email']:
+    if 'author_email' not in setup_parsed:
         setup_parsed['author_email'] = "YOUR EMAIL HERE"
 
-    if not setup_parsed['version']:
+    if 'version' not in setup_parsed:
         setup_parsed['version'] = "YOUR VERSION HERE"
 
-    if not setup_parsed['description']:
+    if 'description' not in setup_parsed:
         setup_parsed['description'] = get_git_description()
 
-    if not setup_parsed['packages']:
+    if 'packages' not in setup_parsed:
         setup_parsed['packages'] = "YOUR PACKAGES HERE"
 
     return setup_parsed

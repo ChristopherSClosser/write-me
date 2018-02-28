@@ -5,7 +5,7 @@ import shutil
 
 import markdown_generator as mg
 
-from readme_generator.scaffold_options import (dbms, frameworks, languages,
+from readme_generator.scaffold_options import (dbms, frameworks,
                                                serving_options, test_options,)
 
 from write_me.dep_info import parse
@@ -15,16 +15,16 @@ from write_me.get_license import get_license_type
 from write_me.list_files import get_all_py_files
 from write_me.project_data import get_project_url
 from write_me.pyramid_ini import get_dev_info
-from write_me.travis_badge import get_travis_badge
 from write_me.stp_info import parse_setup_py
-from write_me.tsting_info import get_docstrings
+from write_me.travis_badge import get_travis_badge
+from write_me.tsting_info import get_test_docstrings
 
 settings_dict = get_settings_info()
 url_dict = get_url_docstrings()
 setup_dict = parse_setup_py()
 dependencies = parse()
 license = get_license_type()
-test_dict = get_docstrings()
+test_dict = get_test_docstrings()
 get_all_py = get_all_py_files()
 user_data = get_project_url()
 pyramid_info = get_dev_info()
@@ -91,6 +91,7 @@ def main():
         w.write_hrule()
 
         # Description and Key Features
+        w.write_heading('Description', 3)
         if badge:
             w.writeline(badge)
             w.writeline()
@@ -108,27 +109,32 @@ def main():
         w.write_hrule()
         authors = mg.List()
         for i in range(len(setup_dict['author'])):
-            authors.append(mg.link(user_data['project_user_profile_url'], setup_dict['author'][i]))
+            authors.append(mg.link(user_data['url'], setup_dict['author'][i]))
         w.write(authors)
 
-        # DEPENDENCIES
-        w.write_heading('Dependencies', 3)
-        w.write_hrule()
-        deps = mg.List()
-        for dep in dependencies:
-            deps.append(dep)
-        w.write(deps)
+        if len(dependencies) > 0:
+            # DEPENDENCIES
+            w.write_heading('Dependencies', 3)
+            w.write_hrule()
+            deps = mg.List()
+            for dep in dependencies:
+                deps.append(dep)
+            if args.django and "django" not in dependencies:
+                deps.append("Django")
+            elif args.pyramid and "pyramid" not in dependencies:
+                deps.append("Pyramid")
+            elif args.flask and "flask" not in dependencies:
+                deps.append("Flask")
+            w.write(deps)
 
         if args.verbose:
             # DOCS
             w.write_heading('Documentation', 3)
             w.write_hrule()
-            w.writeline('Additional documentation can be found at: {}'.format('http://write-me.readthedocs.io/en/stable/'))
-
-            w.write_heading('Getting Started', 3)
-            w.write_hrule()
+            w.writeline('Additional documentation can be found at: YOUR DOC SITE HERE')
 
         w.write_heading('Getting Started', 3)
+        w.write_hrule()
 
         # GETTING STARTED: Installation requirements
         w.write_heading(mg.emphasis('Prerequisites'), 5)
@@ -153,6 +159,50 @@ def main():
         w.writeline('`$ source ENV/bin/activate`')
         w.writeline()
         w.writeline('`$ pip install -r requirements.txt`')
+
+        if os.path.isfile('requirements.txt'):
+            with open('requirements.txt', 'r') as f:
+                reqs = []
+                for line in f:
+                    line = line.strip()
+                    reqs.append(line)
+            reqs = [i.split('==')[0] for i in reqs]
+
+            if args.django and "psycopg2" in reqs:
+                # Additional Django setup requirements using PostgreSQL
+                w.writeline()
+                w.writeline('Open PostgreSQL using the `psql` command from your Terminal.')
+                w.writeline('Create a PostgreSQL Database, called YOUR DBNAME HERE, using following command:')
+                w.writeline()
+                w.writeline('`USER=# CREATE DATABASE ~YOUR DB NAME HERE~;`')
+                w.writeline()
+                w.writeline('Now that your database exists, you can migrate this project\'s data into it. Outside of the PostgreSQL commandline, on the same level as your `manage.py` file, run:')
+                w.writeline('`$ ./manage.py migrate`')
+                w.writeline()
+
+            elif args.django and "mymssql" in reqs:
+                # Additional Django setup requirements using MySQL
+                w.writeline()
+                w.writeline('Open MySQL using the `psql` command from your Terminal, with your personal user data.')
+                w.writeline('Create a PostgreSQL Database, called YOUR DBNAME HERE, using following command:')
+                w.writeline()
+                w.writeline('`USER=# CREATE DATABASE ~YOUR DB NAME HERE~;`')
+                w.writeline()
+                w.writeline('Now that your database exists, you can migrate this project\'s data into it. Outside of the MySQL commandline, on the same level as your `manage.py` file, run:')
+                w.writeline('`$ ./manage.py migrate`')
+                w.writeline()
+
+            elif args.django and "cx_Oracle" in reqs:
+                # Additional Django setup requirements using Oracle
+                w.writeline()
+                w.writeline('Open Oracle using the `sqlplus` command from your Terminal.')
+                w.writeline('Create an Oracle Database, called YOUR DBNAME HERE, using following command:')
+                w.writeline()
+                w.writeline('`USER=# CREATE DATABASE ~YOUR DB NAME HERE~;`')
+                w.writeline()
+                w.writeline('Now that your database exists, you can migrate this project\'s data into it. Outside of the Oracle commandline, on the same level as your `manage.py` file, run:')
+                w.writeline('`$ ./manage.py migrate`')
+                w.writeline()
 
         if args.django:
             # GETTING STARTED: Serving the App (Django)
@@ -180,13 +230,18 @@ def main():
         w.write_hrule()
         if len(test_dict.keys()) > 0:
             w.write_heading(mg.emphasis('Running Tests'), 5)
-            w.writeline('This application uses {} as a testing suite. To run tests, run:'.format(mg.link(test_options[testing_mod][0], testing_mod)))
-            w.writeline()
-            w.writeline('`{}`'.format(test_options[testing_mod][1]))
-            w.writeline()
-            w.writeline('To view test coverage, run:')
-            w.writeline()
-            w.writeline('`{}`'.format(test_options[testing_mod][2]))
+            if args.django:
+                w.writeline('This is a Django application, and therefore to run tests, run the following command at the same level as `./manage.py`.')
+                w.writeline()
+                w.writeline('`./manage.py test`')
+            else:
+                w.writeline('This application uses {} as a testing suite. To run tests, run:'.format(mg.link(test_options[testing_mod][0], testing_mod)))
+                w.writeline()
+                w.writeline('`{}`'.format(test_options[testing_mod][1]))
+                w.writeline()
+                w.writeline('To view test coverage, run:')
+                w.writeline()
+                w.writeline('`{}`'.format(test_options[testing_mod][2]))
 
             w.write_heading(mg.emphasis('Test Files'), 5)
             w.writeline('The testing files for this project are:')
@@ -197,21 +252,21 @@ def main():
             for key, val in test_dict.items():
                 test_table.append('`{}`'.format(key), val)
             w.write(test_table)
-
-            # URLS - table
-            if args.django or args.pyramid or args.flask:
-                w.write_heading('URLs', 3)
-                w.write_hrule()
-                w.writeline('The URLS for this project can be found in the following modules:')
-                w.writeline()
-                urls_table = mg.Table()
-                urls_table.add_column('URL module', mg.Alignment.CENTER)
-                urls_table.add_column('Description', mg.Alignment.CENTER)
-                for key, val in url_dict.items():
-                    urls_table.append(key, val)
-                w.write(urls_table)
         else:
             w.writeline('This repository contains no tests.')
+
+        # URLS - table
+        if args.django or args.pyramid or args.flask:
+            w.write_heading('URLs', 3)
+            w.write_hrule()
+            w.writeline('The URLS for this project can be found in the following modules:')
+            w.writeline()
+            urls_table = mg.Table()
+            urls_table.add_column('URL module', mg.Alignment.CENTER)
+            urls_table.add_column('Description', mg.Alignment.CENTER)
+            for key, val in url_dict.items():
+                urls_table.append(key, val)
+            w.write(urls_table)
 
         # APPLICATIONS (Django) -v
         if args.django and args.verbose:
@@ -219,9 +274,19 @@ def main():
             w.write_hrule()
             models_list = mg.List()
             for model in settings_dict['INSTALLED_APPS']:
-                if "django.contrib" not in model:
+                if "django.contrib" not in model and "storages" not in model:
                     models_list.append(model)
             w.write(models_list)
+
+        # APPLICATIONS (Pyramid)
+        if args.pyramid:
+            w.write_heading('Pyramid Development Files', 3)
+            w.write_hrule()
+            w.writeline('Development files specific to the Pyramid web framework can be found in the following files:')
+            pyr_table = mg.List()
+            for key, val in pyramid_info.items():
+                pyr_table.append(key)
+            w.write(pyr_table)
 
         # TOOLS
         w.write_heading('Development Tools', 3)
@@ -240,8 +305,6 @@ def main():
                     tools_list.append('{} - web framework'.format(mg.emphasis(package.lower())))
                 elif package.lower() in dbms:
                     tools_list.append('{} - DB management system'.format(mg.emphasis(package.lower())))
-                elif package.lower() in languages:
-                    tools_list.append('{} - programming language'.format(mg.emphasis(package.lower())))
         w.write(tools_list)
 
         if args.verbose:
@@ -263,18 +326,17 @@ def main():
         w.write(shoutouts)
 
         w.writeline(mg.emphasis('This README was generated using ' + mg.link('https://github.com/chelseadole/write-me', 'writeme.')))
-    return """
+    print("""
 
         README generated.
 
         User TODOs:
             * Add application highlights to bullet-point "Features" section
-            * Add contributor Github URL links to "Authors" section
-            * Link additional documentation to "Documentation" section
+            * Add correct contributor Github URL links to "Authors" section
             * Populate "Acknowledgements" section
 
-        Please review your new README.
+        Please review your new README, and complete any sections that require additional user input.
 
-        """
+        """)
 if __name__ == "__main__":
     main()
